@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A sleek 2-Player 2D Canvas Starship Battle Game with HTML5 Canvas, 6-DOF Flight Physics, and Modular Web Audio Synthesizer.">
+    <title>Cyber Clash - 2D Starship Combat Arena</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        // Purge any stale service workers or caches from prior apps on localhost:8080
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+                for (const reg of regs) {
+                    reg.unregister();
+                }
+            });
+        }
+        if ('caches' in window) {
+            caches.keys().then(keys => {
+                for (const key of keys) {
+                    caches.delete(key);
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header / Navigation -->
+        <header class="game-header">
+            <div class="logo">
+                <span class="logo-icon">🔊</span>
+                <h1>2D Starship Combat Arena</h1>
+            </div>
+            <div class="header-badges">
+                <button class="main-menu-btn" id="mainMenuBtn" title="Open Main Menu (Esc)">☰ MENU</button>
+                <button class="badge pause-btn" id="pauseHeaderBtn" title="Pause / Resume Game (P)">⏸ PAUSE</button>
+                <div class="ai-difficulty-control" id="aiDifficultyHeaderControl" title="Adjust AI Combat Capability">
+                    <div class="ai-difficulty-header-row">
+                        <span class="ai-difficulty-tag">🤖 AI LEVEL:</span>
+                        <span class="ai-level-badge ai-badge-balanced" id="aiLevelBadgeHeader">LVL 3 &bull; BALANCED</span>
+                    </div>
+                    <input type="range" class="ai-difficulty-slider" id="aiDifficultySliderHeader" min="1" max="5" value="3" step="1" aria-label="AI Combat Capability Level">
+                </div>
+                <button class="sound-toggle-btn" id="soundHeaderBtn" title="Toggle Sound FX">
+                    <span class="sound-icon" id="soundHeaderIcon">🔊</span> Sound ON
+                </button>
+                <span class="badge mode-badge" id="modeBadge">⚔️ PVP DUEL</span>
+                <span class="badge round-badge" id="roundBadge">ROUND 1 OF 5</span>
+                <span class="badge score-badge" id="scoreBadge">SCORE: P1 (0) - P2 (0)</span>
+            </div>
+        </header>
+
+        <!-- Dedicated Top HUD Bar (Off the Canvas Arena) -->
+        <section class="hud-top-bar">
+            <!-- Human Pilots Health Stack (Top-Left) -->
+            <div class="hud-stack human-hud-stack" id="humanHudStack">
+                <!-- Player 1 HUD Card -->
+                <div class="hud-card player-hud p1-hud" id="p1HudCard">
+                    <div class="player-hud-header">
+                        <span class="player-indicator p1-indicator"></span>
+                        <span class="player-name">PLAYER 1</span>
+                        <div class="status-badges">
+                            <span class="powerup-badge powerup-lasso hidden" id="p1TractorBadge">➰ LASSO: READY</span>
+                            <span class="powerup-badge powerup-doppelganger hidden" id="p1DoppelgangerBadge">👥 DECOYS</span>
+                            <span class="powerup-badge powerup-evaporation hidden" id="p1EvaporationBadge">⚛️ EVAPORATION: READY</span>
+                            <span class="powerup-badge powerup-slow hidden" id="p1SlowBadge">🐌 SLOW</span>
+                            <span class="powerup-badge powerup-electric hidden" id="p1ElectricBadge">⚡ ELECTRIC BLASTER</span>
+                            <span class="powerup-badge powerup-mine hidden" id="p1MineBadge">🛑 MINELAYER</span>
+                            <span class="powerup-badge powerup-speed hidden" id="p1SpeedBadge">⚡ SPEED</span>
+                            <span class="powerup-badge powerup-grenade hidden" id="p1PowerupBadge">💣 GRENADES</span>
+                            <span class="powerup-badge powerup-shield hidden" id="p1ShieldBadge">🛡️ SHIELD: 20</span>
+                            <span class="powerup-badge powerup-quad hidden" id="p1QuadBadge">⚡ QUAD-GUN</span>
+                            <span class="powerup-badge powerup-ring hidden" id="p1RingBadge">🔥 RING OF FIRE</span>
+                            <span class="powerup-badge powerup-blocked hidden" id="p1BlockedBadge">⚡ BLOCKED</span>
+                            <span class="powerup-badge powerup-frozen hidden" id="p1FrozenBadge">🧊 FROZEN</span>
+                            <span class="powerup-badge powerup-seeker hidden" id="p1SeekerBadge">🚀 HEAT-SEEKER</span>
+                            <span class="powerup-badge powerup-laser hidden" id="p1LaserBadge">⚡ LASER: 5</span>
+                            <span class="powerup-badge powerup-stasis hidden" id="p1StasisBadge">❄️ STASIS: 3</span>
+                            <span class="powerup-badge powerup-flag hidden" id="p1FlagBadge">🚩 FLAG CARRIER</span>
+                        </div>
+                    </div>
+                    <div class="hp-bar-container">
+                        <div class="hp-bar-fill p1-hp-fill" id="p1HpFill" style="width: 100%;"></div>
+                    </div>
+                    <div class="hp-pips" id="p1HpPips"></div>
+                    <div class="hud-stat-row">
+                        <span class="hud-stat-text" id="p1HpText">5 / 5 HP</span>
+                        <span class="regen-text" id="p1RegenText">+1 HP in 10s</span>
+                    </div>
+                    
+                    <!-- Mega-Blast Charge Meter -->
+                    <div class="charge-bar-wrapper">
+                        <div class="charge-label">MEGA-BLAST CHARGE</div>
+                        <div class="charge-bar-container">
+                            <div class="charge-bar-fill p1-charge-fill" id="p1ChargeFill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Arena Status -->
+            <div class="hud-card status-card" id="centerStatusCard">
+                <span class="versus-text" id="versusText">VS</span>
+                <div class="ctf-score-row hidden" id="ctfScoreRow">
+                    <div class="flag-accumulator blue-accumulator">
+                        <span class="flag-acc-label">BLUE FLAGS:</span>
+                        <div class="flag-slots" id="blueFlagSlots"></div>
+                    </div>
+                    <span class="ctf-team-badge ctf-blue">BLUE <span id="blueFlagCount">0</span>/3</span>
+                    <span class="ctf-divider">&bull;</span>
+                    <span class="ctf-team-badge ctf-red"><span id="redFlagCount">0</span>/3 RED</span>
+                    <div class="flag-accumulator red-accumulator">
+                        <div class="flag-slots" id="redFlagSlots"></div>
+                        <span class="flag-acc-label">:RED FLAGS</span>
+                    </div>
+                </div>
+                <span class="fps-counter" id="fpsValue">60 FPS</span>
+                <span class="bump-warning" id="mapNameText">Round 1: Open Arena (+5 HP/Round)</span>
+            </div>
+
+            <!-- Right HUD Container (P2 Card in PVP, or AI Stack in Multiplayer) -->
+            <div class="hud-stack-right-wrapper" id="rightHudContainer">
+                <!-- Player 2 HUD Card (opponent in PVP, reparented to humanHudStack in co-op) -->
+                <div class="hud-card player-hud p2-hud" id="p2HudCard">
+                    <div class="player-hud-header">
+                        <div class="status-badges">
+                            <span class="powerup-badge powerup-lasso hidden" id="p2TractorBadge">➰ LASSO: READY</span>
+                            <span class="powerup-badge powerup-doppelganger hidden" id="p2DoppelgangerBadge">👥 DECOYS</span>
+                            <span class="powerup-badge powerup-evaporation hidden" id="p2EvaporationBadge">⚛️ EVAPORATION: READY</span>
+                            <span class="powerup-badge powerup-slow hidden" id="p2SlowBadge">🐌 SLOW</span>
+                            <span class="powerup-badge powerup-electric hidden" id="p2ElectricBadge">⚡ ELECTRIC BLASTER</span>
+                            <span class="powerup-badge powerup-mine hidden" id="p2MineBadge">🛑 MINELAYER</span>
+                            <span class="powerup-badge powerup-speed hidden" id="p2SpeedBadge">⚡ SPEED</span>
+                            <span class="powerup-badge powerup-laser hidden" id="p2LaserBadge">⚡ LASER: 5</span>
+                            <span class="powerup-badge powerup-stasis hidden" id="p2StasisBadge">❄️ STASIS: 3</span>
+                            <span class="powerup-badge powerup-seeker hidden" id="p2SeekerBadge">🚀 HEAT-SEEKER</span>
+                            <span class="powerup-badge powerup-frozen hidden" id="p2FrozenBadge">🧊 FROZEN</span>
+                            <span class="powerup-badge powerup-blocked hidden" id="p2BlockedBadge">⚡ BLOCKED</span>
+                            <span class="powerup-badge powerup-shield hidden" id="p2ShieldBadge">🛡️ SHIELD: 20</span>
+                            <span class="powerup-badge powerup-quad hidden" id="p2QuadBadge">⚡ QUAD-GUN</span>
+                            <span class="powerup-badge powerup-ring hidden" id="p2RingBadge">🔥 RING OF FIRE</span>
+                            <span class="powerup-badge powerup-grenade hidden" id="p2PowerupBadge">💣 GRENADES</span>
+                            <span class="powerup-badge powerup-flag hidden" id="p2FlagBadge">🚩 FLAG CARRIER</span>
+                        </div>
+                        <span class="player-name" id="p2PlayerName">PLAYER 2</span>
+                        <span class="player-indicator p2-indicator" id="p2Indicator"></span>
+                    </div>
+                    <div class="hp-bar-container">
+                        <div class="hp-bar-fill p2-hp-fill" id="p2HpFill" style="width: 100%;"></div>
+                    </div>
+                    <div class="hp-pips" id="p2HpPips"></div>
+                    <div class="hud-stat-row">
+                        <span class="regen-text" id="p2RegenText">+1 HP in 10s</span>
+                        <span class="hud-stat-text" id="p2HpText">5 / 5 HP</span>
+                    </div>
+
+                    <!-- Mega-Blast Charge Meter -->
+                    <div class="charge-bar-wrapper">
+                        <div class="charge-label">MEGA-BLAST CHARGE</div>
+                        <div class="charge-bar-container">
+                            <div class="charge-bar-fill p2-charge-fill" id="p2ChargeFill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Bots HUD Stack (Stacked vertically on Top-Right in Multiplayer) -->
+                <div class="hud-stack ai-hud-stack hidden" id="aiHudStack"></div>
+            </div>
+        </section>
+
+        <!-- Main Game Area -->
+        <main class="game-main">
+            <div class="canvas-wrapper">
+                <canvas id="gameCanvas"></canvas>
+
+                <!-- Game Over / Round Modal Overlay -->
+                <div class="game-over-overlay hidden" id="gameOverModal">
+                    <div class="game-over-card">
+                        <h2 class="winner-title" id="winnerText">PLAYER 1 WINS ROUND 1!</h2>
+                        <p class="winner-subtitle" id="winnerSubText">Next: Round 2 Central Barrier (+10 HP)</p>
+                        <div class="modal-buttons-row">
+                            <button class="restart-btn" id="restartBtn">Proceed to Next Round <kbd>R</kbd></button>
+                            <button class="restart-btn menu-return-btn" id="modalMenuBtn">Main Menu <kbd>M</kbd></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Side Controls Panel -->
+            <aside class="controls-panel">
+                <div class="controls-panel-header">
+                    <h2>Flight Controls</h2>
+                    <button class="open-controls-modal-btn" id="openControlsModalBtn" title="Rebind Keys & Switch Scheme">⚙️ CONFIGURE CONTROLS</button>
+                </div>
+
+                <!-- Shrunk / Collapsible Game Mode Guide -->
+                <details class="game-guide-details">
+                    <summary class="game-guide-summary">📖 Game Guide & Tactical Arsenal (Click to view)</summary>
+                    <div class="special-tip">
+                        🌀 <strong>Rotating Blade Power-Up</strong>: Orbiting energy scythes slice enemy hulls, chop incoming bullets, and detonate mines!<br>
+                        🛑 <strong>Enhanced Proximity Mines</strong>: 5 HP direct-hit damage, 130px blast radius, deep bass whomp, and chain reaction cascades!<br>
+                        💣 <strong>Shockwave Grenades</strong>: Circular expanding blast ring deals devastating localized shockwave damage!<br>
+                        ☄️ <strong>Asteroid Hazards</strong>: Big, Medium & Small asteroids drift through barriers, absorb weapon fire, and shatter into fragments!<br>
+                        ➰ <strong>Green Electric Lasso</strong>: 1350px range electric rope reels in foes and holds them frozen for 4s!<br>
+                        🚩 <strong>Capture The Flag</strong>: Infiltrate enemy base, steal their Energy Core Flag, and bring it home! 3 progressive operations with pneumatic sliding doors and spacetime labyrinths!<br>
+                        🛡️ <strong>Team Combat</strong>: Fly solo or with a co-op wingman against 1-4 rogue AI combat drones!<br>
+                        👥 <strong>Doppelgangers</strong>: Two ghost clone ships split off to distract missiles & absorb shots!<br>
+                        ⚛️ <strong>Cone-Shaped Evaporation Beam</strong>: Expands up to 100% thicker across the arena! Frazzles opponents with reflective power dissipation!<br>
+                        ✨ <strong>Partner Power-Ups (Co-op)</strong>: Resurrect fallen wingman with invulnerability or grant Partner Boon (speed + shield + blast)!<br>
+                        ⚠️ <strong>Hazard Traps</strong>: Diamond traps, hydraulic Crusher Traps with energy siphon, and EMP Sludge!
+                    </div>
+                </details>
+                
+                <!-- Player 1 Controls Box -->
+                <div class="control-box p1-box">
+                    <h3 class="p1-title">Player 1 (Cyan) &bull; 6-DOF</h3>
+                    <div class="key-bindings">
+                        <div class="control-row-grid">
+                            <div class="control-item">
+                                <span class="action-label">Forward:</span>
+                                <kbd class="key" data-action="P1_FORWARD">W</kbd>
+                            </div>
+                            <div class="control-item">
+                                <span class="action-label">Reverse:</span>
+                                <kbd class="key" data-action="P1_REVERSE">S</kbd>
+                            </div>
+                            <div class="control-item">
+                                <span class="action-label">Turn Left:</span>
+                                <kbd class="key" data-action="P1_ROTATE_LEFT">A</kbd>
+                            </div>
+                            <div class="control-item">
+                                <span class="action-label">Turn Right:</span>
+                                <kbd class="key" data-action="P1_ROTATE_RIGHT">D</kbd>
+                            </div>
+                            <div class="control-item">
+                                <span class="action-label">Strafe Left:</span>
+                                <kbd class="key" data-action="P1_STRAFE_LEFT">Q</kbd>
+                            </div>
+                            <div class="control-item">
+                                <span class="action-label">Strafe Right:</span>
+                                <kbd class="key" data-action="P1_STRAFE_RIGHT">E</kbd>
+                            </div>
+                        </div>
+                        <div class="shoot-binding">
+                            <span class="action-label">Shoot / Mega-Charge:</span>
+                            <kbd class="key key-small" data-action="P1_FIRE">T</kbd>
+                        </div>
+                        <div class="shoot-binding">
+                            <span class="action-label">Laser Inhibitor:</span>
+                            <kbd class="key key-small" data-action="P1_LASER">Y</kbd>
+                        </div>
+                        <div class="shoot-binding">
+                            <span class="action-label">Immobilizer (2s):</span>
+                            <kbd class="key key-small" data-action="P1_FREEZE">U</kbd>
+                        </div>
+                        <div class="shoot-binding">
+                            <span class="action-label">Self-Destruct 💥:</span>
+                            <kbd class="key key-small key-danger" data-action="P1_SELF_DESTRUCT">G</kbd>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Player 2 Controls Box -->
+                <div class="control-box p2-box">
+                    <h3 class="p2-title">Player 2 (Magenta) &bull; 6-DOF</h3>
+                    <div class="key-bindings">
+                        <div class="control-row-grid">
+                            <div class="control-item">
+                                <span class="action-label">Forward:</span>
+                                <kbd class="key" data-action="P2_FORWARD">NUM 8</kbd>
+                            </div>
+                            <div class="control-item">
+                                <span class="action-label">Reverse:</span>
+                                <kbd class="key" data-action="P2_REVERSE">NUM 5</kbd>
+                            </div>
+                            <div class="control-item">
+                                <span class="action-label">Turn Left:</span>
+                                <kbd class="key" data-action="P2_ROTATE_LEFT">NUM 4</kbd>
+                            </div>
+                            <div class="control-item">
+                                <span class="action-label">Turn Right:</span>
+                                <kbd class="key" data-action="P2_ROTATE_RIGHT">NUM 6</kbd>
+                            </div>
+                            <div class="control-item">
+                                <span class="action-label">Strafe Left:</span>
+                                <kbd class="key" data-action="P2_STRAFE_LEFT">NUM 7</kbd>
+                            </div>
+                            <div class="control-item">
+                                <span class="action-label">Strafe Right:</span>
+                                <kbd class="key" data-action="P2_STRAFE_RIGHT">NUM 9</kbd>
+                            </div>
+                        </div>
+                        <div class="shoot-binding">
+                            <span class="action-label">Shoot / Mega-Charge:</span>
+                            <kbd class="key key-small" data-action="P2_FIRE">←</kbd>
+                        </div>
+                        <div class="shoot-binding">
+                            <span class="action-label">Laser Inhibitor:</span>
+                            <kbd class="key key-small" data-action="P2_LASER">↓</kbd>
+                        </div>
+                        <div class="shoot-binding">
+                            <span class="action-label">Immobilizer (2s):</span>
+                            <kbd class="key key-small" data-action="P2_FREEZE">→</kbd>
+                        </div>
+                        <div class="shoot-binding">
+                            <span class="action-label">Self-Destruct 💥:</span>
+                            <kbd class="key key-small key-danger" data-action="P2_SELF_DESTRUCT">↑</kbd>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div class="settings-group">
+                    <div class="sidebar-ai-difficulty">
+                        <div class="sidebar-ai-header">
+                            <span class="sidebar-ai-title">🤖 AI Capability</span>
+                            <span class="ai-level-badge ai-badge-balanced" id="aiLevelBadgeSidebar">LVL 3 &bull; BALANCED</span>
+                        </div>
+                        <input type="range" class="ai-difficulty-slider" id="aiDifficultySliderSidebar" min="1" max="5" value="3" step="1" aria-label="AI Combat Capability Level">
+                    </div>
+                    <label class="toggle-container">
+                        <input type="checkbox" id="audioToggle" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Sound Effects</span>
+                    </label>
+                    <label class="toggle-container">
+                        <input type="checkbox" id="trailToggle" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Particle Trails</span>
+                    </label>
+                    <label class="toggle-container">
+                        <input type="checkbox" id="gridToggle" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Arena Grid</span>
+                    </label>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Main Menu Modal Overlay -->
+        <div class="main-menu-overlay" id="mainMenuModal">
+            <div class="main-menu-container">
+                <div class="menu-brand">
+                    <div class="menu-badge">SPACE COMBAT SIMULATOR</div>
+                    <h1 class="menu-glitch-title">CYBER CLASH</h1>
+                    <div class="menu-subtitle">STARSHIP ARENA &bull; TACTICAL COMBAT SYSTEM</div>
+                </div>
+
+                <!-- Main Menu Tabs: Missions vs Controls -->
+                <div class="menu-nav-tabs">
+                    <button type="button" class="menu-tab-btn active" id="tabMissionsBtn">⚔️ COMBAT MISSIONS</button>
+                    <button type="button" class="menu-tab-btn" id="tabControlsBtn">⚙️ FLIGHT CONTROLS & REBINDING</button>
+                </div>
+
+                <!-- TAB 1: Combat Missions & Modes -->
+                <div class="menu-tab-pane active" id="menuTabMissions">
+                    <!-- Main Menu AI Capability Tuning -->
+                    <div class="menu-ai-difficulty-card">
+                        <div class="menu-ai-diff-header">
+                            <span class="menu-ai-icon">🤖</span>
+                            <div class="menu-ai-info">
+                                <div class="menu-ai-title-row">
+                                    <span class="menu-ai-title">AI COMBAT CAPABILITY</span>
+                                    <span class="ai-level-badge ai-badge-balanced" id="aiLevelBadgeMenu">LVL 3 &bull; BALANCED</span>
+                                </div>
+                                <span class="menu-ai-desc" id="aiLevelDescMenu">Tactical speed & balanced aim. Standard combat maneuvers.</span>
+                            </div>
+                        </div>
+                        <div class="menu-ai-slider-wrap">
+                            <div class="slider-marks">
+                                <span class="mark" data-val="1">Novice</span>
+                                <span class="mark" data-val="2">Casual</span>
+                                <span class="mark" data-val="3">Balanced</span>
+                                <span class="mark" data-val="4">Expert</span>
+                                <span class="mark" data-val="5">Nightmare</span>
+                            </div>
+                            <input type="range" class="ai-difficulty-slider menu-slider" id="aiDifficultySliderMenu" min="1" max="5" value="3" step="1" aria-label="Main Menu AI Combat Capability Level">
+                        </div>
+                    <!-- Starship Hull Customization / 8-Ship Visual Combat Hangar -->
+                    <div class="menu-chassis-card">
+                        <div class="menu-chassis-header">
+                            <span class="menu-chassis-icon">🚀</span>
+                            <div class="menu-chassis-info">
+                                <div class="menu-chassis-title">STARSHIP COMBAT HANGAR (8 SHIP CHASSIS)</div>
+                                <span class="menu-chassis-desc">Choose from 8 specialized combat starships with live visual hulls (identical 44x44 hitboxes & physical flight stats).</span>
+                            </div>
+                        </div>
+                        <div class="chassis-selectors-grid">
+                            <div class="chassis-player-group">
+                                <div class="chassis-group-header">
+                                    <span class="chassis-group-label">P1 STARSHIP HULL:</span>
+                                    <span class="chassis-selected-name" id="p1SelectedChassisLabel">VIPER</span>
+                                </div>
+                                <div class="chassis-hangar-row" id="p1ChassisSelect">
+                                    <button type="button" class="chassis-card-btn active" data-chassis="VIPER" title="Aegis Viper - Needle Interceptor">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Viper</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="CRUISER" title="Heavy Cruiser - Battlecruiser">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Cruiser</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="PHANTOM" title="Phantom - Diamond Stealth Dart">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Phantom</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="SAUCER" title="Saucer - Zero-G Disc Saucer">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Saucer</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="DREADNOUGHT" title="Dreadnought - Brutalist Twin-Pincer Warship">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Dreadnought</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="CORSAIR" title="Corsair - Asymmetrical Solar-Sail Raider">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Corsair</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="INTERCEPTOR" title="Interceptor - Razor Tri-Wing Dart Craft">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Interceptor</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="TITAN" title="Titan - Heavy Armored Diamond Citadel">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Titan</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="chassis-player-group">
+                                <div class="chassis-group-header">
+                                    <span class="chassis-group-label">P2 STARSHIP HULL:</span>
+                                    <span class="chassis-selected-name" id="p2SelectedChassisLabel">CRUISER</span>
+                                </div>
+                                <div class="chassis-hangar-row" id="p2ChassisSelect">
+                                    <button type="button" class="chassis-card-btn" data-chassis="VIPER" title="Aegis Viper - Needle Interceptor">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Viper</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn active" data-chassis="CRUISER" title="Heavy Cruiser - Battlecruiser">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Cruiser</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="PHANTOM" title="Phantom - Diamond Stealth Dart">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Phantom</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="SAUCER" title="Saucer - Zero-G Disc Saucer">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Saucer</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="DREADNOUGHT" title="Dreadnought - Brutalist Twin-Pincer Warship">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Dreadnought</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="CORSAIR" title="Corsair - Asymmetrical Solar-Sail Raider">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Corsair</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="INTERCEPTOR" title="Interceptor - Razor Tri-Wing Dart Craft">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Interceptor</span>
+                                    </button>
+                                    <button type="button" class="chassis-card-btn" data-chassis="TITAN" title="Titan - Heavy Armored Diamond Citadel">
+                                        <canvas class="chassis-preview-canvas" width="44" height="44"></canvas>
+                                        <span class="chassis-btn-label">Titan</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mode-cards-grid">
+                        <!-- Mode 1: PVP Duel -->
+                        <div class="mode-card active" id="cardPvp" data-mode="PVP">
+                            <div class="mode-card-glow"></div>
+                            <div class="mode-header">
+                                <span class="mode-icon">⚔️</span>
+                                <div class="mode-title-block">
+                                    <h3>PVP DUEL</h3>
+                                    <span class="mode-subtitle">Classic Head-to-Head</span>
+                                </div>
+                            </div>
+                            <p class="mode-desc">2-player local starship duel across 5 progressive arenas with dynamic barriers, gravity vortices, and the full experimental power-up arsenal.</p>
+                            <div class="mode-tags">
+                                <span class="mode-tag">2 Players Local</span>
+                                <span class="mode-tag">5 Stages</span>
+                                <span class="mode-tag">Full Arsenal</span>
+                            </div>
+                            <button class="mode-launch-btn pvp-btn" id="startPvpBtn">LAUNCH DUEL</button>
+                        </div>
+
+                        <!-- Mode 2: Capture The Flag -->
+                        <div class="mode-card" id="cardCtf" data-mode="CTF">
+                            <div class="mode-card-glow"></div>
+                            <div class="mode-header">
+                                <span class="mode-icon">🚩</span>
+                                <div class="mode-title-block">
+                                    <h3>CAPTURE THE FLAG</h3>
+                                    <span class="mode-subtitle">Tactical Objective Raid</span>
+                                </div>
+                            </div>
+                            <p class="mode-desc">Infiltrate the enemy base, seize their glowing Energy Core Flag, and escort it safely to your base! Rapid 3s base respawns with energy shields. First to 3 captures wins.</p>
+                            <div class="mode-controls">
+                                <div class="control-row">
+                                    <span class="control-label">Operation Level:</span>
+                                    <div class="segmented-control" id="ctfLevelSelect">
+                                        <button type="button" class="segment-btn active" data-val="1" title="Level 1: Outpost Assault with Crusher Traps">Lvl 1: Outpost</button>
+                                        <button type="button" class="segment-btn" data-val="2" title="Level 2: Sliding Pneumatic Security Doors">Lvl 2: Sliding Doors</button>
+                                        <button type="button" class="segment-btn" data-val="3" title="Level 3: Spacetime Labyrinth with Shifting Terrain">Lvl 3: Labyrinth</button>
+                                    </div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-label">Pilots:</span>
+                                    <div class="segmented-control" id="ctfPlayerSelect">
+                                        <button type="button" class="segment-btn active" data-val="1">1 Player</button>
+                                        <button type="button" class="segment-btn" data-val="2">2 Players</button>
+                                    </div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-label">AI Enemies:</span>
+                                    <div class="segmented-control" id="ctfAiSelect">
+                                        <button type="button" class="segment-btn active" data-val="1">1 AI</button>
+                                        <button type="button" class="segment-btn" data-val="2">2 AIs</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="mode-launch-btn ctf-btn" id="startCtfBtn">LAUNCH CTF</button>
+                        </div>
+
+                        <!-- Mode 3: Team Combat -->
+                        <div class="mode-card" id="cardTeam" data-mode="TEAM">
+                            <div class="mode-card-glow"></div>
+                            <div class="mode-header">
+                                <span class="mode-icon">🛡️</span>
+                                <div class="mode-title-block">
+                                    <h3>TEAM COMBAT</h3>
+                                    <span class="mode-subtitle">Co-op AI Drone Swarm</span>
+                                </div>
+                            </div>
+                            <p class="mode-desc">Team up solo or with a co-op wingman on Team Blue to annihilate rogue autonomous AI combat drones on Team Red across 5 tactical rounds.</p>
+                            <div class="mode-controls">
+                                <div class="control-row">
+                                    <span class="control-label">Pilots:</span>
+                                    <div class="segmented-control" id="teamPlayerSelect">
+                                        <button type="button" class="segment-btn active" data-val="1">1 Player</button>
+                                        <button type="button" class="segment-btn" data-val="2">2 Players</button>
+                                    </div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-label">AI Drone Squad:</span>
+                                    <div class="segmented-control" id="teamAiSelect">
+                                        <button type="button" class="segment-btn" data-val="1">1 AI</button>
+                                        <button type="button" class="segment-btn active" data-val="2">2 AIs</button>
+                                        <button type="button" class="segment-btn" data-val="3">3 AIs</button>
+                                        <button type="button" class="segment-btn" data-val="4">4 AIs</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="mode-launch-btn team-btn" id="startTeamBtn">LAUNCH SQUAD</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: Integrated Flight Controls & Rebinding Panel -->
+                <div class="menu-tab-pane hidden" id="menuTabControls">
+                    <div class="menu-controls-card">
+                        <div class="controls-config-bar">
+                            <div class="scheme-select-group">
+                                <label for="controlsSchemeSelect">Active Scheme:</label>
+                                <select id="controlsSchemeSelect" class="scheme-select">
+                                    <option value="MODERN">Modern 6-DOF (WASD + Q/E & Num 8546 + 7/9)</option>
+                                    <option value="CLASSIC">Classic Legacy (WASD Steering & Numpad Steering)</option>
+                                </select>
+                            </div>
+                            <div class="scheme-actions">
+                                <button class="scheme-reset-btn" id="resetModernControlsBtn">Reset to Modern 6-DOF</button>
+                                <button class="scheme-reset-btn classic-reset-btn" id="resetClassicControlsBtn">Rollback to Classic</button>
+                            </div>
+                        </div>
+
+                        <div class="controls-table-scroll">
+                            <table class="controls-table">
+                                <thead>
+                                    <tr>
+                                        <th>Flight Action / Maneuver</th>
+                                        <th>Bound Key (Click to Rebind)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="controlsTableBody">
+                                    <!-- Populated dynamically by UIManager -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="controls-modal-footer">
+                            <p class="rebind-instruction">💡 Click any key button above, then press your desired physical key to instantly rebind. Custom key configurations are automatically saved.</p>
+                            <button type="button" class="back-to-missions-btn" id="backToMissionsBtn">⚔️ BACK TO MISSIONS</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="menu-footer">
+                    <button class="resume-mission-btn hidden" id="resumeGameBtn">▶ RESUME CURRENT MATCH</button>
+                    <div class="menu-hotkey-hint">Press <kbd>ESC</kbd> anytime during combat to open or resume menu</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pause Modal Overlay -->
+        <div class="pause-modal-overlay hidden" id="pauseModalOverlay">
+            <div class="pause-modal-card">
+                <div class="pause-icon">⏸</div>
+                <h2 class="pause-title">SIMULATION PAUSED</h2>
+                <p class="pause-subtitle">Physics, weapon systems & audio oscillators frozen.</p>
+                <div class="pause-actions">
+                    <button class="pause-resume-btn" id="pauseResumeBtn">▶ RESUME GAME (P)</button>
+                    <button class="pause-menu-btn" id="pauseMainMenuBtn">☰ MAIN MENU (ESC)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="game-footer">
+            <p>2D Starship Combat Arena Engine &bull; HTML5 Canvas & Web Audio Synthesizer</p>
+        </footer>
+    </div>
+
+    <!-- Modular Starship Arena Architecture -->
+    <script src="js/audio.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/particles.js"></script>
+    <script src="js/mines.js"></script>
+    <script src="js/weapons.js"></script>
+    <script src="js/asteroids.js"></script>
+    <script src="js/powerups.js"></script>
+    <script src="js/obstacles.js"></script>
+    <script src="js/blackhole.js"></script>
+    <script src="js/flag.js"></script>
+    <script src="js/ghostship.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/levels.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
