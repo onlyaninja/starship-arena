@@ -601,7 +601,7 @@ class Game {
         this.powerUps.push(new PowerUpItem(x, y, type));
     }
 
-    triggerGrenadeExplosion(grenadeX, grenadeY, attackerId) {
+    triggerGrenadeExplosion(grenadeX, grenadeY, attackerId, isBounced = false) {
         const blastRadius = 115;
         this.soundFx.playWhompExplosion();
 
@@ -626,7 +626,7 @@ class Game {
 
         for (const p of allShips) {
             if (p.hp <= 0) continue;
-            if (attacker && p.team !== 'NONE' && p.team === attacker.team && p !== attacker) continue;
+            if (!isBounced && attacker && p.team !== 'NONE' && p.team === attacker.team && p !== attacker) continue;
 
             const pcx = p.x + p.width / 2;
             const pcy = p.y + p.height / 2;
@@ -653,7 +653,7 @@ class Game {
         this.checkVictoryConditions();
     }
 
-    triggerHeatSeekerExplosion(seekerX, seekerY, attackerId) {
+    triggerHeatSeekerExplosion(seekerX, seekerY, attackerId, isBounced = false) {
         const blastRadius = 80;
         this.soundFx.playExplosion();
 
@@ -675,7 +675,7 @@ class Game {
 
         for (const p of allShips) {
             if (p.hp <= 0) continue;
-            if (attacker && p.team !== 'NONE' && p.team === attacker.team && p !== attacker) continue;
+            if (!isBounced && attacker && p.team !== 'NONE' && p.team === attacker.team && p !== attacker) continue;
 
             const pcx = p.x + p.width / 2;
             const pcy = p.y + p.height / 2;
@@ -1030,13 +1030,13 @@ class Game {
             }
 
             if (proj.isGrenade && proj.exploded) {
-                this.triggerGrenadeExplosion(proj.x, proj.y, proj.ownerId);
+                this.triggerGrenadeExplosion(proj.x, proj.y, proj.ownerId, proj.bounced || proj.isReflected);
                 this.projectiles.splice(i, 1);
                 continue;
             }
 
             if (proj.isHoming && proj.exploded) {
-                this.triggerHeatSeekerExplosion(proj.x, proj.y, proj.ownerId);
+                this.triggerHeatSeekerExplosion(proj.x, proj.y, proj.ownerId, proj.bounced || proj.isReflected);
                 this.projectiles.splice(i, 1);
                 continue;
             }
@@ -1099,8 +1099,11 @@ class Game {
 
             // Projectile vs Ships
             for (const target of allShips) {
-                if (target.hp <= 0 || target.id === proj.ownerId) continue;
-                if (proj.team !== 'NONE' && proj.team === target.team) continue;
+                if (target.hp <= 0) continue;
+                if (!proj.bounced && !proj.isReflected) {
+                    if (target.id === proj.ownerId) continue;
+                    if (proj.team !== 'NONE' && proj.team === target.team) continue;
+                }
 
                 if (this.checkBulletPlayerHit(proj, target)) {
                     const isProtected = this.bases.some(b => b.protectsShip(target));
@@ -1112,9 +1115,9 @@ class Game {
                         }
                     } else {
                         if (proj.isGrenade) {
-                            this.triggerGrenadeExplosion(proj.x, proj.y, proj.ownerId);
+                            this.triggerGrenadeExplosion(proj.x, proj.y, proj.ownerId, proj.bounced || proj.isReflected);
                         } else if (proj.isHoming) {
-                            this.triggerHeatSeekerExplosion(proj.x, proj.y, proj.ownerId);
+                            this.triggerHeatSeekerExplosion(proj.x, proj.y, proj.ownerId, proj.bounced || proj.isReflected);
                         } else {
                             target.takeDamage(proj.damage, this.particles, this.soundFx);
                         }
@@ -1175,8 +1178,11 @@ class Game {
 
             // Laser vs Ships
             for (const target of allShips) {
-                if (target.hp <= 0 || target.id === laser.ownerId) continue;
-                if (laser.team !== 'NONE' && laser.team === target.team) continue;
+                if (target.hp <= 0) continue;
+                if (!laser.bounced && !laser.isReflected) {
+                    if (target.id === laser.ownerId) continue;
+                    if (laser.team !== 'NONE' && laser.team === target.team) continue;
+                }
 
                 if (this.checkBulletPlayerHit(laser, target)) {
                     target.weaponBlockedTimer = 3.0; // Inhibitor block
@@ -1221,8 +1227,11 @@ class Game {
             }
 
             for (const target of allShips) {
-                if (target.hp <= 0 || target.id === beam.ownerId) continue;
-                if (beam.team !== 'NONE' && beam.team === target.team) continue;
+                if (target.hp <= 0) continue;
+                if (!beam.bounced && !beam.isReflected) {
+                    if (target.id === beam.ownerId) continue;
+                    if (beam.team !== 'NONE' && beam.team === target.team) continue;
+                }
 
                 if (this.checkBulletPlayerHit(beam, target)) {
                     target.freezeTimer = 2.0; // Stasis lock
@@ -1236,8 +1245,7 @@ class Game {
         // 14. Evaporation Beams (Cone shaped, reflection decay)
         for (let i = this.evaporationBeams.length - 1; i >= 0; i--) {
             const eBeam = this.evaporationBeams[i];
-            const enemy = this.getClosestEnemy(eBeam.sourcePlayer);
-            eBeam.update(dt, this.obstacles, enemy, this.particles, this.soundFx, this.mines, this.asteroids);
+            eBeam.update(dt, this.obstacles, allShips, this.particles, this.soundFx, this.mines, this.asteroids);
 
             if (eBeam.isExpired()) {
                 this.evaporationBeams.splice(i, 1);

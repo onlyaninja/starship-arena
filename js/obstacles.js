@@ -64,6 +64,10 @@ class Obstacle {
         }
 
         munition.bounced = true;
+        munition.isReflected = true;
+        if (munition.isHoming) {
+            munition.target = null; // Re-evaluate dynamic target upon barrier reflection
+        }
         if (munition.angle !== undefined) {
             munition.angle = Math.atan2(munition.vy, munition.vx);
         }

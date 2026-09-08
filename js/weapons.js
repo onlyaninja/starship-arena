@@ -76,8 +76,11 @@ class Projectile {
                 if (allShips && allShips.length > 0) {
                     let closest = null, minD = Infinity;
                     for (const s of allShips) {
-                        if (s.hp <= 0 || s.id === this.ownerId) continue;
-                        if (this.team && s.team && this.team !== 'NONE' && this.team === s.team) continue;
+                        if (s.hp <= 0) continue;
+                        if (!this.bounced && !this.isReflected) {
+                            if (s.id === this.ownerId) continue;
+                            if (this.team && s.team && this.team !== 'NONE' && this.team === s.team) continue;
+                        }
                         const d = Math.hypot((s.x + s.width / 2) - this.x, (s.y + s.height / 2) - this.y);
                         if (d < minD) {
                             minD = d;
@@ -229,6 +232,7 @@ class LaserBeam {
 
     bounce() {
         this.bounced = true;
+        this.isReflected = true;
         this.angle += Math.PI;
         this.vx = Math.cos(this.angle) * this.speed;
         this.vy = Math.sin(this.angle) * this.speed;
@@ -295,6 +299,7 @@ class ImmobilizerBeam {
 
     bounce() {
         this.bounced = true;
+        this.isReflected = true;
         this.angle += Math.PI;
         this.vx = Math.cos(this.angle) * this.speed;
         this.vy = Math.sin(this.angle) * this.speed;
@@ -343,6 +348,7 @@ class ElectricBolt {
         this.radius = 6;
         this.damage = 1;
         this.bounceTimer = 6.0;
+        this.bounced = false;
         this.isReflected = false;
         this.reflectedBy = null;
         this.isGrenade = false;
@@ -511,7 +517,7 @@ class EvaporationBeam {
                 const endY = startY + dirY * segLen;
                 const startW = this.getWidthAtDist(cumulativeDist);
                 const endW = this.getWidthAtDist(cumulativeDist + segLen);
-                this.segments.push({ startX, startY, endX, endY, startW, endW, startDist: cumulativeDist, endDist: cumulativeDist + segLen });
+                this.segments.push({ startX, startY, endX, endY, startW, endW, startDist: cumulativeDist, endDist: cumulativeDist + segLen, bounces });
                 break;
             }
 
@@ -526,7 +532,8 @@ class EvaporationBeam {
                 startW, endW,
                 startDist: cumulativeDist,
                 endDist: cumulativeDist + segDist,
-                hitNormalX, hitNormalY, hitObstacle
+                hitNormalX, hitNormalY, hitObstacle,
+                bounces
             });
 
             cumulativeDist += segDist;
@@ -627,88 +634,106 @@ class EvaporationBeam {
             }
         }
 
-        if (!targetPlayer || targetPlayer.hp <= 0) {
-            this.capturedPlayer = null;
-            return;
-        }
+        const candidateShips = Array.isArray(targetPlayer)
+            ? targetPlayer
+            : (targetPlayer ? [targetPlayer] : []);
 
-        const tcx = targetPlayer.x + targetPlayer.width / 2;
-        const tcy = targetPlayer.y + targetPlayer.height / 2;
-        const targetRadius = 20;
+        if (!this.shipDamageTickTimers) this.shipDamageTickTimers = new Map();
+        let anyCaptured = false;
 
-        let isHit = false;
-        let closestPt = null;
-        let minHitDist = Infinity;
-        let hitDistAlongBeam = 0;
+        for (const ship of candidateShips) {
+            if (!ship || ship.hp <= 0) continue;
 
-        for (const seg of this.segments) {
-            const vx = seg.endX - seg.startX;
-            const vy = seg.endY - seg.startY;
-            const segLenSq = vx * vx + vy * vy;
-            if (segLenSq === 0) continue;
+            const scx = ship.x + ship.width / 2;
+            const scy = ship.y + ship.height / 2;
+            const targetRadius = 20;
 
-            let t = ((tcx - seg.startX) * vx + (tcy - seg.startY) * vy) / segLenSq;
-            t = Math.max(0, Math.min(1, t));
+            let isHit = false;
+            let closestPt = null;
+            let minHitDist = Infinity;
+            let hitDistAlongBeam = 0;
 
-            const projX = seg.startX + t * vx;
-            const projY = seg.startY + t * vy;
-            const dist = Math.hypot(tcx - projX, tcy - projY);
-            const distAlongBeam = seg.startDist + t * Math.sqrt(segLenSq);
-            const beamWAtT = this.getWidthAtDist(distAlongBeam);
-            const hitThreshold = beamWAtT / 2 + targetRadius;
+            for (const seg of this.segments) {
+                // If segment has not bounced (bounces === 0), do not hit shooter or friendly teammates
+                if (!seg.bounces || seg.bounces === 0) {
+                    if (ship === this.sourcePlayer || ship.id === this.ownerId) continue;
+                    if (this.sourcePlayer && ship.team !== 'NONE' && ship.team === this.sourcePlayer.team) continue;
+                }
+                // Reflected segments (seg.bounces > 0) can hit the shooter (self damage!) and anyone else
 
-            if (dist <= hitThreshold && dist < minHitDist) {
-                isHit = true;
-                minHitDist = dist;
-                closestPt = { x: projX, y: projY };
-                hitDistAlongBeam = distAlongBeam;
+                const vx = seg.endX - seg.startX;
+                const vy = seg.endY - seg.startY;
+                const segLenSq = vx * vx + vy * vy;
+                if (segLenSq === 0) continue;
+
+                let t = ((scx - seg.startX) * vx + (scy - seg.startY) * vy) / segLenSq;
+                t = Math.max(0, Math.min(1, t));
+
+                const projX = seg.startX + t * vx;
+                const projY = seg.startY + t * vy;
+                const dist = Math.hypot(scx - projX, scy - projY);
+                const distAlongBeam = seg.startDist + t * Math.sqrt(segLenSq);
+                const beamWAtT = this.getWidthAtDist(distAlongBeam);
+                const hitThreshold = beamWAtT / 2 + targetRadius;
+
+                if (dist <= hitThreshold && dist < minHitDist) {
+                    isHit = true;
+                    minHitDist = dist;
+                    closestPt = { x: projX, y: projY };
+                    hitDistAlongBeam = distAlongBeam;
+                }
+            }
+
+            if (isHit && closestPt) {
+                this.capturedPlayer = ship;
+                anyCaptured = true;
+
+                // Tractor Pull toward beam center axis
+                ship.vx *= 0.14;
+                ship.vy *= 0.14;
+
+                const pullFactor = 0.20;
+                ship.x += (closestPt.x - scx) * pullFactor;
+                ship.y += (closestPt.y - scy) * pullFactor;
+
+                // Frazzle Jitter
+                ship.x += (Math.random() - 0.5) * 6;
+                ship.y += (Math.random() - 0.5) * 6;
+
+                ship.pushOutFromObstacles(obstacles);
+
+                // Arcing Particles
+                if (particleSystem) {
+                    for (let i = 0; i < 3; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const spd = Math.random() * 250 + 60;
+                        particleSystem.push(new Particle(
+                            scx + (Math.random() - 0.5) * 24,
+                            scy + (Math.random() - 0.5) * 24,
+                            Math.cos(angle) * spd,
+                            Math.sin(angle) * spd,
+                            Math.random() < 0.6 ? '#c77dff' : '#00f2fe',
+                            Math.random() * 4 + 2,
+                            0.07
+                        ));
+                    }
+                }
+
+                // Damage Ticks with distance/reflection power dissipation
+                const powerRatio = this.getPowerRatioAtDist(hitDistAlongBeam);
+                const tickInterval = 0.058 / powerRatio;
+                let shipTimer = (this.shipDamageTickTimers.get(ship.id) || 0) + dt;
+                while (shipTimer >= tickInterval && this.damageDealt < this.maxDamage && ship.hp > 0) {
+                    shipTimer -= tickInterval;
+                    this.damageDealt += 1;
+                    ship.takeDamage(1, particleSystem, soundFx);
+                    if (soundFx) soundFx.playFrazzleHit();
+                }
+                this.shipDamageTickTimers.set(ship.id, shipTimer);
             }
         }
 
-        if (isHit && closestPt) {
-            this.capturedPlayer = targetPlayer;
-
-            // Tractor Pull toward beam center axis
-            targetPlayer.vx *= 0.14;
-            targetPlayer.vy *= 0.14;
-
-            const pullFactor = 0.20;
-            targetPlayer.x += (closestPt.x - tcx) * pullFactor;
-            targetPlayer.y += (closestPt.y - tcy) * pullFactor;
-
-            // Frazzle Jitter
-            targetPlayer.x += (Math.random() - 0.5) * 6;
-            targetPlayer.y += (Math.random() - 0.5) * 6;
-
-            targetPlayer.pushOutFromObstacles(obstacles);
-
-            // Arcing Particles
-            for (let i = 0; i < 3; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const spd = Math.random() * 250 + 60;
-                particleSystem.push(new Particle(
-                    tcx + (Math.random() - 0.5) * 24,
-                    tcy + (Math.random() - 0.5) * 24,
-                    Math.cos(angle) * spd,
-                    Math.sin(angle) * spd,
-                    Math.random() < 0.6 ? '#c77dff' : '#00f2fe',
-                    Math.random() * 4 + 2,
-                    0.07
-                ));
-            }
-
-            // Damage Ticks with distance/reflection power dissipation
-            this.damageTickTimer += dt;
-            const powerRatio = this.getPowerRatioAtDist(hitDistAlongBeam);
-            // Less powerful as it spreads out -> slower damage accumulation or damage scaling
-            const tickInterval = 0.058 / powerRatio; 
-            while (this.damageTickTimer >= tickInterval && this.damageDealt < this.maxDamage && targetPlayer.hp > 0) {
-                this.damageTickTimer -= tickInterval;
-                this.damageDealt += 1;
-                targetPlayer.takeDamage(1, particleSystem, soundFx);
-                if (soundFx) soundFx.playFrazzleHit();
-            }
-        } else {
+        if (!anyCaptured) {
             this.capturedPlayer = null;
         }
 
@@ -1074,8 +1099,8 @@ class RingOfFireEntity {
         // 2. Melt incoming hostile standard ballistic projectiles
         if (projectiles) {
             for (let i = projectiles.length - 1; i >= 0; i--) {
-                const proj = projectiles[i];
-                if (proj.ownerId === this.ownerId || proj.isMega) continue;
+                if (proj.isMega) continue;
+                if (!proj.bounced && !proj.isReflected && proj.ownerId === this.ownerId) continue;
                 const dist = Math.hypot(proj.x - this.x, proj.y - this.y);
                 if (dist <= effectiveRadius + 8) {
                     // Vaporize projectile with sizzle
