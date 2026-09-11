@@ -46,9 +46,11 @@ class Game {
         this.bases = [];
         this.labyrinthSystem = null;
 
-        this.bombSpawnTimer = 2.0;
+        this.bombSpawnTimer = 1.5;
         this.blackHoleSpawnTimer = 4.0;
         this.asteroidSpawnTimer = 2.5;
+        this.screenShake = 0;
+        this.maxPowerUps = 10;
 
         this.p1SpawnX = 0;
         this.p1SpawnY = 0;
@@ -132,6 +134,15 @@ class Game {
         if (this.mainMenuBtn) this.mainMenuBtn.addEventListener('click', () => this.showMainMenu());
         if (this.resumeGameBtn) this.resumeGameBtn.addEventListener('click', () => this.hideMainMenu());
         if (this.modalMenuBtn) this.modalMenuBtn.addEventListener('click', () => this.showMainMenu());
+
+        this.p1SelfDestructBtn = document.getElementById('p1SelfDestructBtn');
+        if (this.p1SelfDestructBtn) {
+            this.p1SelfDestructBtn.addEventListener('click', () => {
+                if (this.p1 && this.p1.hp > 0) {
+                    this.p1.triggerSelfDestruct(this);
+                }
+            });
+        }
 
         if (this.startPvpBtn) {
             this.startPvpBtn.addEventListener('click', (e) => {
@@ -524,6 +535,11 @@ class Game {
             }
             this.asteroids.push(new Asteroid(x, y, size));
         }
+
+        // Seed 4 initial power-up items across the arena
+        for (let p = 0; p < 4; p++) {
+            this.spawnPowerUp();
+        }
     }
 
     spawnAsteroidFromEdge() {
@@ -847,7 +863,8 @@ class Game {
         const enableTrail = this.trailToggle ? this.trailToggle.checked : true;
 
         if (this.p1 && this.p1.hp > 0) {
-            if (this.input.isPressed('P1_SELF_DESTRUCT')) {
+            const isSolo = (this.gameMode === 'CTF' && this.ctfPilots === 1) || (this.gameMode === 'TEAM' && this.teamPilots === 1) || this.playerCount === 1;
+            if (this.input.isPressed('P1_SELF_DESTRUCT') || (isSolo && this.input.isPressed('P2_SELF_DESTRUCT'))) {
                 this.p1.triggerSelfDestruct(this);
             }
             if (this.p1.hp > 0) {
@@ -1295,10 +1312,10 @@ class Game {
             if (s.y > this.logicalHeight) s.y -= this.logicalHeight;
         }
 
-        // 17. Power-Up Pickups & Spawning
+        // 17. Power-Up Pickups & Spawning (Doubled pickup capacity & frequency)
         this.bombSpawnTimer -= dt;
-        if (this.bombSpawnTimer <= 0 && this.powerUps.length < 5) {
-            this.bombSpawnTimer = Math.random() * 2.0 + 2.5;
+        if (this.bombSpawnTimer <= 0 && this.powerUps.length < (this.maxPowerUps || 10)) {
+            this.bombSpawnTimer = Math.random() * 1.0 + 1.25;
             this.spawnPowerUp();
         }
 
@@ -1383,6 +1400,11 @@ class Game {
         for (let i = this.shockwaves.length - 1; i >= 0; i--) {
             this.shockwaves[i].update(dt);
             if (this.shockwaves[i].isDead()) this.shockwaves.splice(i, 1);
+        }
+
+        // Screen shake decay
+        if (this.screenShake > 0) {
+            this.screenShake = Math.max(0, this.screenShake - dt * 2.5);
         }
 
         this.ui.update();
@@ -1556,10 +1578,19 @@ class Game {
         this.soundFx.playRoundWin();
 
         if (this.gameMode === 'CTF') {
-            this.gameOver = true;
-            this.winnerText.textContent = `${roundWinner} WINS CTF OPERATION!`;
-            this.winnerSubText.textContent = `Final Core Captures: BLUE (${this.blueScore}) - RED (${this.redScore})`;
-            this.restartBtn.innerHTML = 'Rematch CTF <kbd>R</kbd>';
+            if (this.ctfLevel < 3) {
+                this.gameOver = false;
+                const nextLvlName = this.ctfLevel === 1 ? 'Level 2: Sliding Doors' : 'Level 3: Spacetime Labyrinth';
+                this.winnerText.textContent = `${roundWinner} WINS LEVEL ${this.ctfLevel}!`;
+                this.winnerSubText.textContent = `Captures: BLUE (${this.blueScore}) - RED (${this.redScore}) • Up Next: ${nextLvlName}`;
+                this.restartBtn.innerHTML = `Proceed to Level ${this.ctfLevel + 1} <kbd>R</kbd>`;
+            } else {
+                this.gameOver = true;
+                this.hasActiveMatch = false;
+                this.winnerText.textContent = `${roundWinner} WINS CTF CAMPAIGN!`;
+                this.winnerSubText.textContent = `All 3 Sectors Conquered! Final Captures: BLUE (${this.blueScore}) - RED (${this.redScore})`;
+                this.restartBtn.innerHTML = 'Replay Campaign <kbd>R</kbd>';
+            }
             this.gameOverModal.classList.remove('hidden');
             return;
         }
@@ -1592,16 +1623,42 @@ class Game {
     }
 
     handleModalButtonClick() {
+        if (this.gameMode === 'CTF') {
+            if (!this.gameOver && this.ctfLevel < 3) {
+                this.ctfLevel++;
+                const ctfBtn = document.querySelector(`#ctfLevelSelect button[data-val="${this.ctfLevel}"]`);
+                if (ctfBtn) {
+                    document.querySelectorAll('#ctfLevelSelect button').forEach(b => b.classList.remove('active'));
+                    ctfBtn.classList.add('active');
+                }
+                this.startCtfMatch();
+            } else {
+                this.ctfLevel = 1;
+                const ctfBtn = document.querySelector(`#ctfLevelSelect button[data-val="1"]`);
+                if (ctfBtn) {
+                    document.querySelectorAll('#ctfLevelSelect button').forEach(b => b.classList.remove('active'));
+                    ctfBtn.classList.add('active');
+                }
+                this.startCtfMatch();
+            }
+            return;
+        }
+
         if (this.gameOver) {
-            if (this.gameMode === 'CTF') this.startCtfMatch();
-            else this.startMode(this.gameMode);
+            this.startMode(this.gameMode);
         } else {
             this.startRound(this.currentRound + 1);
         }
     }
 
     render() {
-        this.ctx.clearRect(0, 0, this.logicalWidth, this.logicalHeight);
+        this.ctx.save();
+        if (this.screenShake > 0) {
+            const shakeMag = this.screenShake * 16;
+            this.ctx.translate((Math.random() - 0.5) * shakeMag, (Math.random() - 0.5) * shakeMag);
+        }
+
+        this.ctx.clearRect(-40, -40, this.logicalWidth + 80, this.logicalHeight + 80);
 
         // Draw Deep Space Atmosphere & Starfield
         this.drawStarfield();
@@ -1726,6 +1783,8 @@ class Game {
         if (this.isPaused) {
             this.drawPauseOverlay();
         }
+
+        this.ctx.restore();
     }
 
     initStars() {

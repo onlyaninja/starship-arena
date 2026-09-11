@@ -122,27 +122,41 @@ class Player {
         const cx = this.x + this.width / 2;
         const cy = this.y + this.height / 2;
 
-        if (game.soundFx) game.soundFx.playWhompExplosion();
+        if (game.soundFx) {
+            game.soundFx.playWhompExplosion();
+            if (game.soundFx.playExplosion) game.soundFx.playExplosion();
+        }
 
-        // Massive fiery shockwaves
+        // Screen Shake Tremor for visceral game feel
+        if (game) {
+            game.screenShake = 0.75;
+        }
+
+        // Multi-tier chromatic thermal shockwaves
         if (game.shockwaves) {
-            game.shockwaves.push(new ShockwaveRing(cx, cy, 160, '#ff0055', 0.55));
-            game.shockwaves.push(new ShockwaveRing(cx, cy, 110, '#ffd166', 0.4));
+            game.shockwaves.push(new ShockwaveRing(cx, cy, 200, '#ffffff', 0.65));
+            game.shockwaves.push(new ShockwaveRing(cx, cy, 160, '#ff7b00', 0.55));
+            game.shockwaves.push(new ShockwaveRing(cx, cy, 120, '#ff0055', 0.45));
+            game.shockwaves.push(new ShockwaveRing(cx, cy, 70, '#ffd166', 0.35));
         }
 
-        // Heavy debris sparks
-        for (let i = 0; i < 50; i++) {
-            const a = Math.random() * Math.PI * 2;
-            const spd = Math.random() * 500 + 100;
-            game.particles.push(new Particle(
-                cx, cy,
-                Math.cos(a) * spd, Math.sin(a) * spd,
-                Math.random() < 0.5 ? '#ff0055' : (Math.random() < 0.8 ? '#ffb703' : '#ffffff'),
-                Math.random() * 6 + 3, 0.08
-            ));
+        // 95+ high-velocity explosion debris, flame jets & dense smoke particles
+        if (game.particles) {
+            for (let i = 0; i < 95; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const spd = Math.random() * 600 + 80;
+                const pColor = (i % 5 === 0) ? '#ffffff' : ((i % 5 === 1) ? '#ffea00' : ((i % 5 === 2) ? '#ff7b00' : ((i % 5 === 3) ? '#ff0055' : '#c77dff')));
+                game.particles.push(new Particle(
+                    cx, cy,
+                    Math.cos(a) * spd, Math.sin(a) * spd,
+                    pColor,
+                    Math.random() * 7 + 3,
+                    0.09
+                ));
+            }
         }
 
-        // Self-destruct blast damage in 160px radius (5 direct, 3 mid, 2 outer)
+        // Self-destruct blast damage: 20 damage within 40px, 8 mid (90px), 4 outer (160px)
         const allShips = game.getAllShips ? game.getAllShips() : [game.p1, game.p2];
         for (const ship of allShips) {
             if (!ship || ship.hp <= 0 || ship.id === this.id) continue;
@@ -150,7 +164,7 @@ class Player {
             const scy = ship.y + ship.height / 2;
             const dist = Math.hypot(scx - cx, scy - cy);
             if (dist <= 160) {
-                const dmg = dist <= 50 ? 5 : (dist <= 100 ? 3 : 2);
+                const dmg = dist <= 40 ? 20 : (dist <= 90 ? 8 : 4);
                 ship.takeDamage(dmg, game.particles, game.soundFx);
             }
         }
@@ -159,8 +173,11 @@ class Player {
         if (game.asteroids) {
             for (const ast of game.asteroids) {
                 if (ast.destroyed) continue;
-                if (Math.hypot(ast.x - cx, ast.y - cy) <= 160 + ast.radius) {
-                    ast.takeDamage(3, game.particles, game.soundFx, game.asteroids);
+                const dist = Math.hypot(ast.x - cx, ast.y - cy);
+                if (dist <= 40 + ast.radius) {
+                    ast.disintegrate(game.particles, game.soundFx);
+                } else if (dist <= 160 + ast.radius) {
+                    ast.takeDamage(6, game.particles, game.soundFx, game.asteroids);
                 }
             }
         }

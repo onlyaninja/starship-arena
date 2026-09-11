@@ -99,6 +99,7 @@
                             <div class="charge-bar-fill p1-charge-fill" id="p1ChargeFill" style="width: 0%;"></div>
                         </div>
                     </div>
+                    <button type="button" class="hud-self-destruct-btn" id="p1SelfDestructBtn" title="Self-Destruct (Hotkeys: G or ArrowUp)">💥 SELF-DESTRUCT [G]</button>
                 </div>
             </div>
 
@@ -380,6 +381,8 @@
                             </div>
                             <input type="range" class="ai-difficulty-slider menu-slider" id="aiDifficultySliderMenu" min="1" max="5" value="3" step="1" aria-label="Main Menu AI Combat Capability Level">
                         </div>
+                    </div>
+
                     <!-- Starship Hull Customization / 8-Ship Visual Combat Hangar -->
                     <div class="menu-chassis-card">
                         <div class="menu-chassis-header">
@@ -505,12 +508,12 @@
                             </div>
                             <p class="mode-desc">Infiltrate the enemy base, seize their glowing Energy Core Flag, and escort it safely to your base! Rapid 3s base respawns with energy shields. First to 3 captures wins.</p>
                             <div class="mode-controls">
-                                <div class="control-row">
+                                <div class="control-row control-row-stacked">
                                     <span class="control-label">Operation Level:</span>
-                                    <div class="segmented-control" id="ctfLevelSelect">
-                                        <button type="button" class="segment-btn active" data-val="1" title="Level 1: Outpost Assault with Crusher Traps">Lvl 1: Outpost</button>
-                                        <button type="button" class="segment-btn" data-val="2" title="Level 2: Sliding Pneumatic Security Doors">Lvl 2: Sliding Doors</button>
-                                        <button type="button" class="segment-btn" data-val="3" title="Level 3: Spacetime Labyrinth with Shifting Terrain">Lvl 3: Labyrinth</button>
+                                    <div class="segmented-control ctf-level-control" id="ctfLevelSelect">
+                                        <button type="button" class="segment-btn active" data-val="1" title="Level 1: Outpost Assault with Crusher Traps">1: Outpost</button>
+                                        <button type="button" class="segment-btn" data-val="2" title="Level 2: Sliding Pneumatic Security Doors">2: Doors</button>
+                                        <button type="button" class="segment-btn" data-val="3" title="Level 3: Spacetime Labyrinth with Shifting Terrain">3: Labyrinth</button>
                                     </div>
                                 </div>
                                 <div class="control-row">

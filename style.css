@@ -199,6 +199,39 @@ body {
     gap: 6px;
 }
 
+.hud-self-destruct-btn {
+    margin-top: 4px;
+    width: 100%;
+    padding: 5px 8px;
+    background: rgba(255, 0, 85, 0.15);
+    border: 1px solid rgba(255, 0, 85, 0.45);
+    border-radius: 6px;
+    color: #ff3366;
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.2s ease;
+}
+
+.hud-self-destruct-btn:hover {
+    background: rgba(255, 0, 85, 0.35);
+    border-color: #ff0055;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(255, 0, 85, 0.6);
+    transform: translateY(-1px);
+}
+
+.hud-self-destruct-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 6px rgba(255, 0, 85, 0.8);
+}
+
 .player-hud-header {
     display: flex;
     align-items: center;
@@ -1010,6 +1043,25 @@ canvas {
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 242, 254, 0.15);
 }
 
+.main-menu-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.main-menu-container::-webkit-scrollbar-track {
+    background: rgba(10, 14, 28, 0.6);
+    border-radius: 4px;
+}
+
+.main-menu-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 242, 254, 0.3);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 242, 254, 0.5);
+}
+
+.main-menu-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 242, 254, 0.6);
+}
+
 /* Menu Brand Header */
 .menu-brand {
     text-align: center;
@@ -1166,6 +1218,32 @@ canvas {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+}
+
+.control-row.control-row-stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+}
+
+.control-row-stacked .control-label {
+    text-align: left;
+}
+
+.ctf-level-control {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    width: 100%;
+    gap: 2px;
+}
+
+.ctf-level-control .segment-btn {
+    text-align: center;
+    padding: 5px 2px;
+    font-size: 0.70rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .control-label {
@@ -1437,7 +1515,7 @@ canvas {
 /* Main Menu AI Difficulty Card */
 .menu-ai-difficulty-card {
     width: 100%;
-    max-width: 680px;
+    max-width: 100%;
     background: rgba(18, 24, 46, 0.85);
     border: 1px solid rgba(0, 242, 254, 0.25);
     border-radius: 12px;
@@ -1513,7 +1591,7 @@ canvas {
 /* Main Menu Starship Hull Customization Card */
 .menu-chassis-card {
     width: 100%;
-    max-width: 680px;
+    max-width: 100%;
     background: rgba(18, 24, 46, 0.85);
     border: 1px solid rgba(199, 125, 255, 0.3);
     border-radius: 12px;
@@ -2299,5 +2377,44 @@ canvas {
 .back-to-missions-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 0 16px rgba(0, 242, 254, 0.6);
+}
+
+/* Viewport Height Adaptations for Menu Scaling */
+@media (max-height: 850px) {
+    .main-menu-container {
+        padding: 20px 24px;
+        gap: 16px;
+    }
+    .menu-glitch-title {
+        font-size: 2.2rem;
+    }
+    .menu-badge {
+        margin-bottom: 4px;
+    }
+    .menu-tab-pane {
+        gap: 14px;
+    }
+    .menu-ai-difficulty-card,
+    .menu-chassis-card {
+        padding: 10px 16px;
+        gap: 8px;
+    }
+    .mode-card {
+        padding: 16px 14px;
+    }
+}
+
+@media (max-height: 720px) {
+    .main-menu-container {
+        padding: 14px 18px;
+        gap: 12px;
+    }
+    .menu-glitch-title {
+        font-size: 1.8rem;
+    }
+    .menu-ai-difficulty-card,
+    .menu-chassis-card {
+        padding: 8px 12px;
+    }
 }
 

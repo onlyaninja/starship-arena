@@ -50,7 +50,7 @@ class InputHandler {
                 'P1_FIRE': ['KeyT', 't', 'T', 'Space', ' '],
                 'P1_LASER': ['KeyY', 'y', 'Y', 'ControlLeft'],
                 'P1_FREEZE': ['KeyU', 'u', 'U', 'ShiftLeft', 'KeyF', 'f', 'F'],
-                'P1_SELF_DESTRUCT': ['KeyG', 'g', 'G'],
+                'P1_SELF_DESTRUCT': ['KeyG', 'g', 'G', 'Backspace'],
 
                 // Player 2 (6-DOF: Numpad 8/5/4/6 + 7/9 strafe, Arrows firing, ArrowUp self-destruct)
                 'P2_FORWARD': ['Numpad8', '8', 'Digit8', 'NumpadUp'],
@@ -62,7 +62,7 @@ class InputHandler {
                 'P2_FIRE': ['ArrowLeft', 'ShiftRight', 'Numpad0', '0', 'Insert'],
                 'P2_LASER': ['ArrowDown', 'NumpadEnter', 'Enter'],
                 'P2_FREEZE': ['ArrowRight', 'NumpadAdd', '+', 'KeyO', 'o', 'O'],
-                'P2_SELF_DESTRUCT': ['ArrowUp']
+                'P2_SELF_DESTRUCT': ['ArrowUp', 'NumpadDecimal', 'Delete']
             };
         } else {
             this.classicDefaults = {
@@ -76,7 +76,7 @@ class InputHandler {
                 'P1_FIRE': ['KeyT', 't', 'T', 'Space', ' '],
                 'P1_LASER': ['KeyY', 'y', 'Y', 'KeyE', 'e', 'E'],
                 'P1_FREEZE': ['KeyU', 'u', 'U', 'KeyQ', 'q', 'Q', 'ShiftLeft', 'KeyF'],
-                'P1_SELF_DESTRUCT': ['KeyG', 'g', 'G'],
+                'P1_SELF_DESTRUCT': ['KeyG', 'g', 'G', 'Backspace'],
 
                 // Player 2 (Classic Cardinal: Numpad)
                 'P2_FORWARD': ['Numpad8', '8'],
@@ -88,7 +88,7 @@ class InputHandler {
                 'P2_FIRE': ['ArrowLeft', 'ShiftRight', 'Numpad0', 'NumpadEnter'],
                 'P2_LASER': ['ArrowDown', 'Numpad7', '7'],
                 'P2_FREEZE': ['ArrowRight', 'Numpad9', '9'],
-                'P2_SELF_DESTRUCT': ['ArrowUp']
+                'P2_SELF_DESTRUCT': ['ArrowUp', 'NumpadDecimal', 'Delete']
             };
         }
 
@@ -97,7 +97,9 @@ class InputHandler {
 
     rebuildActionMap() {
         this.actionMap = {};
-        const base = (this.controlScheme === 'MODERN') ? (this.customModern || this.modernDefaults) : (this.customClassic || this.classicDefaults);
+        const defaults = (this.controlScheme === 'MODERN') ? this.modernDefaults : this.classicDefaults;
+        const custom = (this.controlScheme === 'MODERN') ? this.customModern : this.customClassic;
+        const base = { ...defaults, ...(custom || {}) };
         
         for (const [action, keys] of Object.entries(base)) {
             for (const key of keys) {
@@ -144,9 +146,9 @@ class InputHandler {
     }
 
     getCurrentBindings() {
-        return (this.controlScheme === 'MODERN') 
-            ? (this.customModern || this.modernDefaults)
-            : (this.customClassic || this.classicDefaults);
+        const defaults = (this.controlScheme === 'MODERN') ? this.modernDefaults : this.classicDefaults;
+        const custom = (this.controlScheme === 'MODERN') ? this.customModern : this.customClassic;
+        return { ...defaults, ...(custom || {}) };
     }
 
     rebindAction(action, primaryCode) {
