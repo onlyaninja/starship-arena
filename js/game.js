@@ -74,6 +74,12 @@ class Game {
         this.ctfLevel = 1; // 1: Outpost, 2: Sliding Doors, 3: Spacetime Labyrinth
         this.teamPilots = 1;
         this.teamAi = 2;
+        this.raceStage = 1;
+        this.racePilots = 1;
+        this.raceAi = 2;
+        this.raceTrack = null;
+        this.raceElapsedTime = 0;
+        this.raceChampionshipPoints = { 'P1': 0, 'P2': 0, 'AI_RACER_1': 0, 'AI_RACER_2': 0 };
 
         this.currentRound = 1;
         this.p1RoundWins = 0;
@@ -116,6 +122,7 @@ class Game {
         this.startPvpBtn = document.getElementById('startPvpBtn');
         this.startCtfBtn = document.getElementById('startCtfBtn');
         this.startTeamBtn = document.getElementById('startTeamBtn');
+        this.startRaceBtn = document.getElementById('startRaceBtn');
         this.modalMenuBtn = document.getElementById('modalMenuBtn');
 
         this.gameOverModal = document.getElementById('gameOverModal');
@@ -162,11 +169,18 @@ class Game {
                 this.startMode('TEAM');
             });
         }
+        if (this.startRaceBtn) {
+            this.startRaceBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.startMode('RACE');
+            });
+        }
 
         const modeCards = [
             { id: 'cardPvp', mode: 'PVP' },
             { id: 'cardCtf', mode: 'CTF' },
-            { id: 'cardTeam', mode: 'TEAM' }
+            { id: 'cardTeam', mode: 'TEAM' },
+            { id: 'cardRace', mode: 'RACE' }
         ];
         modeCards.forEach(({ id, mode }) => {
             const card = document.getElementById(id);
@@ -213,6 +227,9 @@ class Game {
         setupSegment('ctfAiSelect', val => this.ctfAi = val);
         setupSegment('teamPlayerSelect', val => this.teamPilots = val);
         setupSegment('teamAiSelect', val => this.teamAi = val);
+        setupSegment('raceStageSelect', val => this.raceStage = val);
+        setupSegment('racePlayerSelect', val => this.racePilots = val);
+        setupSegment('raceAiSelect', val => this.raceAi = val);
 
         // Audio Activation
         window.addEventListener('pointerdown', () => this.soundFx.init(), { once: true });
@@ -389,9 +406,40 @@ class Game {
             this.p1RoundWins = 0;
             this.p2RoundWins = 0;
             this.startRound(1);
+        } else if (mode === 'RACE') {
+            this.playerCount = this.racePilots || 1;
+            this.aiCount = this.raceAi || 2;
+            this.modeBadge.textContent = '🏁 GRAND PRIX';
+            this.startRaceMatch();
         }
 
         this.hideMainMenu();
+    }
+
+    startRaceMatch() {
+        this.raceStage = 1;
+        this.raceChampionshipPoints = { 'P1': 0, 'P2': 0, 'AI_RACER_1': 0, 'AI_RACER_2': 0 };
+        this.startRaceStage(1);
+    }
+
+    startRaceStage(stageNum) {
+        this.raceStage = stageNum;
+        this.gameOver = false;
+        this.roundOver = false;
+        this.countdownTimer = 3.2;
+        this.raceElapsedTime = 0;
+        this.racePostFinishTimer = 0;
+
+        this.gameOverModal.classList.add('hidden');
+        this.roundBadge.textContent = `STAGE ${this.raceStage} OF 5`;
+        this.scoreBadge.textContent = 'RACE: 3 LAPS';
+
+        // Instantiate RaceTrack for current stage
+        this.raceTrack = new RaceTrack(this.raceStage, this);
+        this.mapNameText.textContent = `${this.raceTrack.name}: ${this.raceTrack.subtitle}`;
+
+        this.resetPlayers();
+        this.ui.update();
     }
 
     startRound(roundNum) {
@@ -471,6 +519,62 @@ class Game {
                 const bot = new Player(`AI_RED_${i + 1}`, redX, this.logicalHeight / 2 + yOffset, '#ff007f', '#ff5e62', Math.PI, 8, true, 'RED', `RAIDER-${i + 1}`);
                 this.aiBots.push(bot);
             }
+
+        } else if (this.gameMode === 'RACE') {
+            // Setup Starting Grid for Racers
+            const grid = (this.raceTrack && this.raceTrack.gridSlots) ? this.raceTrack.gridSlots : [
+                { x: 680, y: 600, angle: Math.PI },
+                { x: 680, y: 660, angle: Math.PI },
+                { x: 770, y: 600, angle: Math.PI },
+                { x: 770, y: 660, angle: Math.PI }
+            ];
+
+            let racerIndex = 0;
+
+            // Player 1 (Cyan)
+            const s1 = grid[racerIndex++];
+            this.p1 = new Player('P1', s1.x, s1.y, '#00f2fe', '#4facfe', s1.angle, 10, false, 'RACER_1', 'PLAYER 1');
+            this.p1.raceLap = 1;
+            this.p1.raceCheckpointIndex = 1;
+            this.p1.raceFinished = false;
+
+            // Player 2 (Magenta)
+            if (this.playerCount === 2) {
+                const s2 = grid[racerIndex++];
+                this.p2 = new Player('P2', s2.x, s2.y, '#ff007f', '#ff5e62', s2.angle, 10, false, 'RACER_2', 'PLAYER 2');
+                this.p2.raceLap = 1;
+                this.p2.raceCheckpointIndex = 1;
+                this.p2.raceFinished = false;
+            } else {
+                this.p2 = null;
+            }
+
+            // AI Racers: 1 or 2 AIs
+            const aiNames = ['VIPER-AI', 'PHANTOM-AI'];
+            const aiColors = [
+                { p: '#ffd700', s: '#ffb703' }, // Gold
+                { p: '#00ff88', s: '#00b4d8' }  // Neon Emerald
+            ];
+
+            for (let i = 0; i < this.aiCount && racerIndex < grid.length; i++) {
+                const sAi = grid[racerIndex++];
+                const bot = new Player(
+                    `AI_RACER_${i + 1}`,
+                    sAi.x, sAi.y,
+                    aiColors[i].p, aiColors[i].s,
+                    sAi.angle, 10, true,
+                    `AI_RACER_${i + 1}`,
+                    aiNames[i]
+                );
+                bot.raceLap = 1;
+                bot.raceCheckpointIndex = 1;
+                bot.raceFinished = false;
+                this.aiBots.push(bot);
+            }
+
+            // Ensure no rogue random asteroids in race mode to keep racing clean and fair!
+            this.asteroids = [];
+            return;
 
         } else if (this.gameMode === 'TEAM') {
             // Team Combat (Blue Pilots vs Red AI Drones)
@@ -764,6 +868,33 @@ class Game {
 
         const allShips = this.getAllShips();
 
+        // Race Engine Update (Checkpoints, Boost Pads, Slipstream Drafting & 1s Respawns)
+        if (this.gameMode === 'RACE') {
+            this.raceElapsedTime = (this.raceElapsedTime || 0) + dt;
+            if (this.raceTrack) {
+                this.raceTrack.update(dt, this);
+                if (this.racePostFinishTimer > 0) {
+                    this.racePostFinishTimer -= dt;
+                    const humansFinished = (!this.p1 || this.p1.raceFinished) && (!this.p2 || this.p2.isAI || this.p2.raceFinished);
+                    if (humansFinished && this.racePostFinishTimer > 3.0) {
+                        this.racePostFinishTimer = 3.0;
+                    }
+                    if (this.racePostFinishTimer <= 0 && !this.roundOver && !this.gameOver) {
+                        const unfinished = allShips.filter(s => s && !s.raceFinished).sort((a, b) => (b.raceProgress || 0) - (a.raceProgress || 0));
+                        for (const s of unfinished) {
+                            s.raceFinished = true;
+                            this.raceTrack.finishOrder.push(s);
+                            const place = this.raceTrack.finishOrder.length;
+                            const ptsTable = [10, 6, 4, 2];
+                            const pts = ptsTable[place - 1] || 1;
+                            this.raceChampionshipPoints[s.id] = (this.raceChampionshipPoints[s.id] || 0) + pts;
+                        }
+                        this.handleRaceEnd();
+                    }
+                }
+            }
+        }
+
         // 1. Spacetime Labyrinth (CTF Level 3)
         if (this.labyrinthSystem) {
             this.labyrinthSystem.update(dt, this);
@@ -784,11 +915,13 @@ class Game {
             base.update(dt, allShips, this.particles, this.soundFx);
         }
 
-        // 4. Asteroid Hazards
-        this.asteroidSpawnTimer -= dt;
-        if (this.asteroidSpawnTimer <= 0 && this.asteroids.length < 5) {
-            this.asteroidSpawnTimer = Math.random() * 3.0 + 2.5;
-            this.spawnAsteroidFromEdge();
+        // 4. Asteroid Hazards (Only in combat modes)
+        if (this.gameMode !== 'RACE') {
+            this.asteroidSpawnTimer -= dt;
+            if (this.asteroidSpawnTimer <= 0 && this.asteroids.length < 5) {
+                this.asteroidSpawnTimer = Math.random() * 3.0 + 2.5;
+                this.spawnAsteroidFromEdge();
+            }
         }
 
         for (let a = this.asteroids.length - 1; a >= 0; a--) {
@@ -863,7 +996,7 @@ class Game {
         const enableTrail = this.trailToggle ? this.trailToggle.checked : true;
 
         if (this.p1 && this.p1.hp > 0) {
-            const isSolo = (this.gameMode === 'CTF' && this.ctfPilots === 1) || (this.gameMode === 'TEAM' && this.teamPilots === 1) || this.playerCount === 1;
+            const isSolo = (this.gameMode === 'CTF' && this.ctfPilots === 1) || (this.gameMode === 'TEAM' && this.teamPilots === 1) || (this.gameMode === 'RACE' && this.racePilots === 1) || this.playerCount === 1;
             if (this.input.isPressed('P1_SELF_DESTRUCT') || (isSolo && this.input.isPressed('P2_SELF_DESTRUCT'))) {
                 this.p1.triggerSelfDestruct(this);
             }
@@ -1312,11 +1445,13 @@ class Game {
             if (s.y > this.logicalHeight) s.y -= this.logicalHeight;
         }
 
-        // 17. Power-Up Pickups & Spawning (Doubled pickup capacity & frequency)
-        this.bombSpawnTimer -= dt;
-        if (this.bombSpawnTimer <= 0 && this.powerUps.length < (this.maxPowerUps || 10)) {
-            this.bombSpawnTimer = Math.random() * 1.0 + 1.25;
-            this.spawnPowerUp();
+        // 17. Power-Up Pickups & Spawning (Doubled pickup capacity & frequency; Race mode uses static pods)
+        if (this.gameMode !== 'RACE') {
+            this.bombSpawnTimer -= dt;
+            if (this.bombSpawnTimer <= 0 && this.powerUps.length < (this.maxPowerUps || 10)) {
+                this.bombSpawnTimer = Math.random() * 1.0 + 1.25;
+                this.spawnPowerUp();
+            }
         }
 
         for (let i = this.powerUps.length - 1; i >= 0; i--) {
@@ -1555,6 +1690,17 @@ class Game {
     checkVictoryConditions() {
         if (this.roundOver || this.gameOver) return;
 
+        if (this.gameMode === 'RACE') {
+            const allShips = this.getAllShips();
+            const humanShips = [this.p1, this.p2].filter(p => p != null && !p.isAI);
+            const humansFinished = humanShips.length > 0 && humanShips.every(p => p.raceFinished);
+
+            if (humansFinished && this.raceTrack && this.raceTrack.finishOrder.length > 0) {
+                this.handleRaceEnd();
+            }
+            return;
+        }
+
         if (this.gameMode === 'PVP') {
             if (this.p1.hp <= 0 && this.p2.hp <= 0) this.handleRoundEnd('DRAW');
             else if (this.p1.hp <= 0) this.handleRoundEnd('PLAYER 2');
@@ -1568,6 +1714,68 @@ class Game {
             else if (!humansAlive) this.handleRoundEnd('AI DRONE SWARM');
             else if (!aiAlive) this.handleRoundEnd('TEAM BLUE PILOTS');
         }
+    }
+
+    recordRaceFinish(ship) {
+        if (!this.raceTrack) return;
+        const place = this.raceTrack.finishOrder.length;
+
+        // Award championship points: 1st=10, 2nd=6, 3rd=4, 4th=2
+        const ptsTable = [10, 6, 4, 2];
+        const pts = ptsTable[place - 1] || 1;
+        this.raceChampionshipPoints[ship.id] = (this.raceChampionshipPoints[ship.id] || 0) + pts;
+
+        const allShips = this.getAllShips();
+        if (this.raceTrack.finishOrder.length >= allShips.length) {
+            this.handleRaceEnd();
+        } else if (!this.racePostFinishTimer || this.racePostFinishTimer <= 0) {
+            this.racePostFinishTimer = 12.0;
+        }
+    }
+
+    handleRaceEnd() {
+        if (this.roundOver || this.gameOver) return;
+        this.roundOver = true;
+        this.soundFx.stopAllCharges();
+        this.soundFx.playRoundWin();
+
+        const allShips = this.getAllShips();
+        const order = (this.raceTrack && this.raceTrack.finishOrder.length > 0)
+            ? this.raceTrack.finishOrder
+            : [...allShips].sort((a, b) => (b.raceProgress || 0) - (a.raceProgress || 0));
+
+        const winner = order[0] || this.p1;
+        const stageName = this.raceTrack ? this.raceTrack.name : `STAGE ${this.raceStage}`;
+
+        let resultsSummary = `1st: ${winner.name} (+10 pts)`;
+        if (order[1]) resultsSummary += ` • 2nd: ${order[1].name} (+6 pts)`;
+        if (order[2]) resultsSummary += ` • 3rd: ${order[2].name} (+4 pts)`;
+        if (order[3]) resultsSummary += ` • 4th: ${order[3].name} (+2 pts)`;
+
+        if (this.raceStage < 5) {
+            this.gameOver = false;
+            this.winnerText.textContent = `${winner.name} WINS ${stageName}!`;
+            this.winnerSubText.textContent = `${resultsSummary} • Up Next: Stage ${this.raceStage + 1}`;
+            this.restartBtn.innerHTML = `Proceed to Stage ${this.raceStage + 1} <kbd>R</kbd>`;
+        } else {
+            this.gameOver = true;
+            this.hasActiveMatch = false;
+            let bestId = 'P1';
+            let bestPts = -1;
+            for (const [id, pts] of Object.entries(this.raceChampionshipPoints)) {
+                if (pts > bestPts) {
+                    bestPts = pts;
+                    bestId = id;
+                }
+            }
+            const champShip = allShips.find(s => s.id === bestId) || winner;
+
+            this.winnerText.textContent = `🏆 ${champShip.name} IS THE GRAND PRIX CHAMPION!`;
+            this.winnerSubText.textContent = `Championship Final: P1 (${this.raceChampionshipPoints['P1'] || 0}) • P2 (${this.raceChampionshipPoints['P2'] || 0}) • VIPER (${this.raceChampionshipPoints['AI_RACER_1'] || 0}) • PHANTOM (${this.raceChampionshipPoints['AI_RACER_2'] || 0})`;
+            this.restartBtn.innerHTML = 'New Championship <kbd>R</kbd>';
+        }
+
+        this.gameOverModal.classList.remove('hidden');
     }
 
     handleRoundEnd(roundWinner) {
@@ -1623,6 +1831,27 @@ class Game {
     }
 
     handleModalButtonClick() {
+        if (this.gameMode === 'RACE') {
+            if (!this.gameOver && this.raceStage < 5) {
+                this.raceStage++;
+                const stageBtn = document.querySelector(`#raceStageSelect button[data-val="${this.raceStage}"]`);
+                if (stageBtn) {
+                    document.querySelectorAll('#raceStageSelect button').forEach(b => b.classList.remove('active'));
+                    stageBtn.classList.add('active');
+                }
+                this.startRaceStage(this.raceStage);
+            } else {
+                this.raceStage = 1;
+                const stageBtn = document.querySelector(`#raceStageSelect button[data-val="1"]`);
+                if (stageBtn) {
+                    document.querySelectorAll('#raceStageSelect button').forEach(b => b.classList.remove('active'));
+                    stageBtn.classList.add('active');
+                }
+                this.startRaceMatch();
+            }
+            return;
+        }
+
         if (this.gameMode === 'CTF') {
             if (!this.gameOver && this.ctfLevel < 3) {
                 this.ctfLevel++;
@@ -1670,6 +1899,11 @@ class Game {
 
         // Draw High-Tech Tactical Boundaries
         this.drawBoundaryVisuals();
+
+        // Draw Race Track Surface, Checkpoints & Boost Pads
+        if (this.gameMode === 'RACE' && this.raceTrack) {
+            this.raceTrack.draw(this.ctx);
+        }
 
         // Draw Repair & Shield Bases
         for (const base of this.bases) {
@@ -1773,6 +2007,11 @@ class Game {
 
         // Draw Particles
         for (const p of this.particles) p.draw(this.ctx);
+
+        // Draw Race HUD Overlays (floating position badges, drafting indicators, respawn countdowns)
+        if (this.gameMode === 'RACE' && this.raceTrack) {
+            this.raceTrack.drawOverlays(this.ctx, this);
+        }
 
         // Draw Countdown Overlay
         if (this.countdownTimer > 0) {

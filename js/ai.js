@@ -206,8 +206,37 @@ class AIController {
             return true;
         });
 
-        // CTF Specific Objective Logic
-        if (game.gameMode === 'CTF' && game.blueFlag && game.redFlag) {
+        // RACE Mode Objective Logic (Follow track checkpoints & tactical firing)
+        if (game.gameMode === 'RACE' && game.raceTrack) {
+            const nextCp = game.raceTrack.getNextCheckpointForShip(this.player);
+            if (nextCp) {
+                const laneOffset = (this.player.id === 'AI_RACER_1') ? -20 : (this.player.id === 'AI_RACER_2' ? 20 : 0);
+                const normalAngle = nextCp.dir + Math.PI / 2;
+                destX = nextCp.cx + Math.cos(normalAngle) * laneOffset;
+                destY = nextCp.cy + Math.sin(normalAngle) * laneOffset;
+                aimTargetX = destX;
+                aimTargetY = destY;
+
+                // Tactical racing weapon firing: If an opponent is in front within firing cone (<300px), fire blasters!
+                for (const other of allShips) {
+                    if (!other || other.hp <= 0 || other.id === this.player.id) continue;
+                    const ocx = other.x + other.width / 2;
+                    const ocy = other.y + other.height / 2;
+                    const d = Math.hypot(ocx - myCx, ocy - myCy);
+                    if (d < 300) {
+                        const angleToOther = Math.atan2(ocy - myCy, ocx - myCx);
+                        let aDiff = Math.abs(angleToOther - this.player.turretAngle);
+                        while (aDiff > Math.PI) aDiff -= Math.PI * 2;
+                        if (Math.abs(aDiff) < 0.35) {
+                            aimTargetX = ocx;
+                            aimTargetY = ocy;
+                            shouldFire = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        } else if (game.gameMode === 'CTF' && game.blueFlag && game.redFlag) {
             const enemyFlag = (this.player.team === 'BLUE') ? game.redFlag : game.blueFlag;
             const myFlag = (this.player.team === 'BLUE') ? game.blueFlag : game.redFlag;
 
@@ -328,6 +357,18 @@ class AIController {
                 if (d < ast.radius + 60) {
                     destX += (myCx - ast.x) * 2.0;
                     destY += (myCy - ast.y) * 2.0;
+                }
+            }
+        }
+
+        // Track Wall & Obstacle Evasion (Stay away from reflective perimeter barriers)
+        if (game.obstacles && game.gameMode === 'RACE') {
+            for (const obs of game.obstacles) {
+                if (obs.collidesWithRect(myCx - 35, myCy - 35, 70, 70)) {
+                    const obCx = obs.x + obs.w / 2;
+                    const obCy = obs.y + obs.h / 2;
+                    destX += (myCx - obCx) * 1.5;
+                    destY += (myCy - obCy) * 1.5;
                 }
             }
         }

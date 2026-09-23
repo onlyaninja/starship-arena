@@ -85,6 +85,12 @@ class UIManager {
         this.blueFlagSlots = document.getElementById('blueFlagSlots');
         this.redFlagSlots = document.getElementById('redFlagSlots');
 
+        // Race Score Elements
+        this.raceScoreRow = document.getElementById('raceScoreRow');
+        this.raceStageBadge = document.getElementById('raceStageBadge');
+        this.raceLapBadge = document.getElementById('raceLapBadge');
+        this.racePositionsMini = document.getElementById('racePositionsMini');
+
         // Main Menu Tab & Controls Elements
         this.tabMissionsBtn = document.getElementById('tabMissionsBtn');
         this.tabControlsBtn = document.getElementById('tabControlsBtn');
@@ -237,6 +243,38 @@ class UIManager {
             this.renderFlagAccumulator(game.blueScore, game.redScore);
         } else if (this.ctfScoreRow) {
             this.ctfScoreRow.classList.add('hidden');
+        }
+
+        // 5. Hyper Grand Prix Race Scorekeeper
+        if (game.gameMode === 'RACE') {
+            if (this.raceScoreRow) this.raceScoreRow.classList.remove('hidden');
+            this.updateRaceScore(game);
+        } else if (this.raceScoreRow) {
+            this.raceScoreRow.classList.add('hidden');
+        }
+    }
+
+    updateRaceScore(game) {
+        if (!game.raceTrack) return;
+        if (this.raceStageBadge) {
+            const stageNames = ['Neon Speedway', 'Pneumatic Gauntlet', 'Nebula Drift', 'Laser Sector', 'Hyper-Labyrinth'];
+            const stageName = stageNames[(game.raceStage || 1) - 1] || `Stage ${game.raceStage}`;
+            this.raceStageBadge.textContent = `STAGE ${game.raceStage || 1}: ${stageName.toUpperCase()}`;
+        }
+        if (this.raceLapBadge && game.p1) {
+            const currentLap = Math.min(game.p1.raceLap || 1, 3);
+            this.raceLapBadge.textContent = `LAP ${currentLap}/3`;
+        }
+        if (this.racePositionsMini) {
+            const standings = game.raceTrack.getStandings(game);
+            this.racePositionsMini.innerHTML = '';
+            standings.forEach((racer, idx) => {
+                const pill = document.createElement('span');
+                pill.className = `race-pos-pill pos-${idx + 1}`;
+                const name = racer.customName || racer.id;
+                pill.textContent = `${idx + 1}. ${name}`;
+                this.racePositionsMini.appendChild(pill);
+            });
         }
     }
 

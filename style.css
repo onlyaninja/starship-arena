@@ -984,6 +984,91 @@ canvas {
     font-weight: bold;
 }
 
+/* Race Score Row in Center Status Card */
+.race-score-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 2px;
+}
+
+.race-badge-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.race-stage-badge {
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255, 215, 0, 0.2);
+    border: 1px solid #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+    letter-spacing: 0.06em;
+}
+
+.race-lap-badge {
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(0, 242, 254, 0.2);
+    border: 1px solid #00f2fe;
+    color: #00f2fe;
+    box-shadow: 0 0 8px rgba(0, 242, 254, 0.4);
+    letter-spacing: 0.06em;
+}
+
+.race-positions-mini {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.race-pos-pill {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.45);
+    color: #e2e8f0;
+    letter-spacing: 0.04em;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.race-pos-pill.pos-1 {
+    border-color: #ffd700;
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.18);
+    box-shadow: 0 0 6px rgba(255, 215, 0, 0.35);
+}
+
+.race-pos-pill.pos-2 {
+    border-color: #cbd5e1;
+    color: #f1f5f9;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.race-pos-pill.pos-3 {
+    border-color: #cd7f32;
+    color: #f6ad55;
+    background: rgba(205, 127, 50, 0.18);
+}
+
+.race-pos-pill.pos-4 {
+    border-color: #718096;
+    color: #a0aec0;
+    background: rgba(0, 0, 0, 0.3);
+}
+
 /* Modal Buttons Row */
 .modal-buttons-row {
     display: flex;
@@ -1029,7 +1114,7 @@ canvas {
 
 .main-menu-container {
     width: 100%;
-    max-width: 1120px;
+    max-width: 1220px;
     max-height: 94vh;
     overflow-y: auto;
     display: flex;
@@ -1102,12 +1187,18 @@ canvas {
 /* Mode Cards Grid */
 .mode-cards-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
     width: 100%;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1100px) {
+    .mode-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
     .mode-cards-grid {
         grid-template-columns: 1fr;
         max-width: 480px;
@@ -1148,6 +1239,12 @@ canvas {
 .mode-card#cardTeam.active {
     border-color: #ff007f;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 0, 127, 0.25);
+}
+
+.mode-card#cardRace:hover,
+.mode-card#cardRace.active {
+    border-color: #ffd700;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.35);
 }
 
 .mode-header {
@@ -1246,6 +1343,22 @@ canvas {
     white-space: nowrap;
 }
 
+.race-stage-control {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    width: 100%;
+    gap: 2px;
+}
+
+.race-stage-control .segment-btn {
+    text-align: center;
+    padding: 5px 1px;
+    font-size: 0.65rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .control-label {
     font-size: 0.75rem;
     color: var(--text-muted);
@@ -1297,6 +1410,12 @@ canvas {
     background: #ff007f;
     color: #ffffff;
     box-shadow: 0 0 8px rgba(255, 0, 127, 0.5);
+}
+
+#cardRace .segment-btn.active {
+    background: #ffd700;
+    color: #05030a;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
 }
 
 /* Launch Buttons */
@@ -1353,6 +1472,20 @@ canvas {
     background: linear-gradient(135deg, #ff007f, #ff5e62);
     color: #ffffff;
     box-shadow: 0 0 24px rgba(255, 0, 127, 0.7);
+    transform: translateY(-2px);
+}
+
+.mode-launch-btn.race-btn {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.28), rgba(255, 140, 0, 0.38));
+    border-color: #ffd700;
+    color: #fff8e1;
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.35);
+}
+
+.mode-launch-btn.race-btn:hover {
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    color: #05030a;
+    box-shadow: 0 0 24px rgba(255, 215, 0, 0.75);
     transform: translateY(-2px);
 }
 
